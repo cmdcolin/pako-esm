@@ -6,7 +6,6 @@
   "version": "1.0.10",
   "main": "./lib/main.js",
   "exports": "./lib/main.js",
-  "types": "main.d.ts",
   "sideEffects": false,
   "scripts": {
     "build_fixtures": "node support/build_fixtures.js",
