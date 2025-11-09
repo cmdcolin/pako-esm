@@ -3,15 +3,17 @@
   "description": "Another pako-esm fork",
   "author": "cmdcolin",
   "license": "MIT",
-  "version": "1.0.7",
+  "version": "1.0.8",
   "main": "./lib/main.js",
   "exports": "./lib/main.js",
-  "types": "index.d.ts",
+  "types": "main.d.ts",
   "sideEffects": false,
   "scripts": {
     "build_fixtures": "node support/build_fixtures.js",
     "test": "vitest",
-    "lint": "eslint"
+    "lint": "eslint",
+    "preversion": "yarn lint && yarn test",
+    "postversion": "git push --follow-tags"
   },
   "contributors": [
     "Andrei Tuputcyn (https://github.com/andr83)",
