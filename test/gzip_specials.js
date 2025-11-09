@@ -1,12 +1,14 @@
 'use strict'
 
-import { assert, describe, it } from 'vitest'
 
 import fs from 'fs'
 import path from 'path'
-import { arraySet, Buf8 } from '../src/utils/common'
-import * as pako from '../src/main'
+
+import { assert, describe, it } from 'vitest'
+
 import { cmpBuf as cmp } from './helpers'
+import * as pako from '../src/main'
+import { Buf8, arraySet } from '../src/utils/common'
 
 function a2s(array) {
   return String.fromCharCode.apply(null, array)

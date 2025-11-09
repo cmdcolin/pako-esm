@@ -1,9 +1,11 @@
 'use strict'
 
-import { assert, describe, it } from 'vitest'
 import zlib from 'zlib'
+
+import { assert, describe, it } from 'vitest'
+
+import { loadSamples, testInflate } from './helpers'
 import * as pako from '../src/main'
-import { testInflate, loadSamples } from './helpers'
 var samples = loadSamples()
 
 describe('Inflate defaults', function () {

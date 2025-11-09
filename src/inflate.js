@@ -1,35 +1,35 @@
 import {
-  assign,
-  arraySet,
-  shrinkBuf,
-  flattenChunks,
   Buf8,
-} from './utils/common'
+  arraySet,
+  assign,
+  flattenChunks,
+  shrinkBuf,
+} from './utils/common.js'
 import {
   binstring2buf,
-  string2buf,
   buf2string,
+  string2buf,
   utf8border,
-} from './utils/strings'
+} from './utils/strings.js'
 import {
-  inflateInit2,
-  inflateGetHeader,
-  inflate as zlibInflate,
-  inflateSetDictionary,
-  inflateEnd,
-} from './zlib/inflate'
-import {
-  Z_OK,
-  Z_FINISH,
-  Z_NO_FLUSH,
-  Z_NEED_DICT,
   Z_BUF_ERROR,
+  Z_FINISH,
+  Z_NEED_DICT,
+  Z_NO_FLUSH,
+  Z_OK,
   Z_STREAM_END,
   Z_SYNC_FLUSH,
-} from './zlib/constants'
-import msg from './zlib/messages'
-import ZStream from './zlib/zstream'
-import GZheader from './zlib/gzheader'
+} from './zlib/constants.js'
+import GZheader from './zlib/gzheader.js'
+import {
+  inflate as zlibInflate,
+  inflateEnd,
+  inflateGetHeader,
+  inflateInit2,
+  inflateSetDictionary,
+} from './zlib/inflate.js'
+import msg from './zlib/messages.js'
+import ZStream from './zlib/zstream.js'
 
 var toString = Object.prototype.toString
 

@@ -2,9 +2,9 @@
 
 import { assert, describe, it } from 'vitest'
 
-import { arraySet, Buf8 } from '../src/utils/common'
-import * as pako from '../src/main'
 import * as helpers from './helpers'
+import * as pako from '../src/main'
+import { Buf8, arraySet } from '../src/utils/common'
 
 var samples = helpers.loadSamples()
 

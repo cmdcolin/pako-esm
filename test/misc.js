@@ -1,10 +1,12 @@
 'use strict'
 
-import { assert, describe, it } from 'vitest'
 import fs from 'fs'
 import path from 'path'
-import * as pako from '../src/main'
+
+import { assert, describe, it } from 'vitest'
+
 import { cmpBuf as cmp } from './helpers'
+import * as pako from '../src/main'
 
 describe('ArrayBuffer', function () {
   var file = path.join(__dirname, 'fixtures/samples/lorem_utf_100k.txt')

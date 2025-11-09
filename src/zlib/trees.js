@@ -17,8 +17,8 @@
 //   misrepresented as being the original software.
 // 3. This notice may not be removed or altered from any source distribution.
 
-import { Z_FIXED, Z_BINARY, Z_TEXT, Z_UNKNOWN } from './constants'
-import { arraySet } from '../utils/common'
+import { Z_BINARY, Z_FIXED, Z_TEXT, Z_UNKNOWN } from './constants.js'
+import { arraySet } from '../utils/common.js'
 
 function zero(buf) {
   var len = buf.length

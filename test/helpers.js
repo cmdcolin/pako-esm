@@ -1,11 +1,13 @@
 'use strict'
 
-import { assert } from 'vitest'
 import fs from 'fs'
 import path from 'path'
+
 import b from 'buffer-from'
-import { setTyped, Buf8 } from '../src/utils/common'
+import { assert } from 'vitest'
+
 import * as pako from '../src/main'
+import { Buf8, setTyped } from '../src/utils/common'
 
 // Load fixtures to test
 // return: { 'filename1': content1, 'filename2': content2, ...}
@@ -76,4 +78,4 @@ function testInflate(samples, inflateOptions, deflateOptions) {
   }
 }
 
-export { cmpBuf, testInflate, loadSamples }
+export { cmpBuf, loadSamples, testInflate }

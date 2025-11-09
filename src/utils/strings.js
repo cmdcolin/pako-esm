@@ -1,6 +1,6 @@
 // String encode/decode helpers
 
-import { Buf8, shrinkBuf } from './common'
+import { Buf8, shrinkBuf } from './common.js'
 
 // Quick check if we can use fast array to bin string conversion
 //

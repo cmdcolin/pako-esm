@@ -3,14 +3,13 @@
 
 import { assert, describe, it } from 'vitest'
 
+import * as pako from '../src/main'
 import * as c from '../src/zlib/constants'
-import msg from '../src/zlib/messages'
 
 //var zlib_stream = require('../lib/zlib/zstream');
 import * as zlib_inflate from '../src/zlib/inflate'
-
 import inflate_table from '../src/zlib/inftrees'
-import * as pako from '../src/main'
+import msg from '../src/zlib/messages'
 
 function h2b(hex) {
   return hex.split(' ').map(function (hx) {

@@ -17,37 +17,37 @@
 //   misrepresented as being the original software.
 // 3. This notice may not be removed or altered from any source distribution.
 
-import { arraySet, Buf8, Buf16 } from '../utils/common'
+import adler32 from './adler32.js'
 import {
-  Z_NO_FLUSH,
-  Z_PARTIAL_FLUSH,
-  Z_FULL_FLUSH,
-  Z_FINISH,
   Z_BLOCK,
+  Z_BUF_ERROR,
+  Z_DATA_ERROR,
+  Z_DEFAULT_COMPRESSION,
+  Z_DEFAULT_STRATEGY,
+  Z_DEFLATED,
+  Z_FILTERED,
+  Z_FINISH,
+  Z_FIXED,
+  Z_FULL_FLUSH,
+  Z_HUFFMAN_ONLY,
+  Z_NO_FLUSH,
   Z_OK,
+  Z_PARTIAL_FLUSH,
+  Z_RLE,
   Z_STREAM_END,
   Z_STREAM_ERROR,
-  Z_DATA_ERROR,
-  Z_BUF_ERROR,
-  Z_DEFAULT_COMPRESSION,
-  Z_FILTERED,
-  Z_HUFFMAN_ONLY,
-  Z_RLE,
-  Z_FIXED,
-  Z_DEFAULT_STRATEGY,
   Z_UNKNOWN,
-  Z_DEFLATED,
-} from './constants'
+} from './constants.js'
+import crc32 from './crc32.js'
+import msg from './messages.js'
 import {
-  _tr_init,
-  _tr_flush_block,
-  _tr_tally,
   _tr_align,
+  _tr_flush_block,
+  _tr_init,
   _tr_stored_block,
-} from './trees'
-import adler32 from './adler32'
-import crc32 from './crc32'
-import msg from './messages'
+  _tr_tally,
+} from './trees.js'
+import { Buf16, Buf8, arraySet } from '../utils/common.js'
 
 var MAX_MEM_LEVEL = 9
 /* Maximum value for memLevel in deflateInit2 */

@@ -1,11 +1,13 @@
 'use strict'
 
-import { assert, describe, it } from 'vitest'
 import fs from 'fs'
 import path from 'path'
+
 import b from 'buffer-from'
-import * as pako from '../src/main'
+import { assert, describe, it } from 'vitest'
+
 import { cmpBuf as cmp } from './helpers'
+import * as pako from '../src/main'
 import * as strings from '../src/utils/strings'
 
 // fromCharCode, but understands right > 0xffff values

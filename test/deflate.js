@@ -1,13 +1,15 @@
 'use strict'
 
-import { assert, describe, it } from 'vitest'
 
-import zlib from 'zlib'
-import * as pako from '../src/main'
-import * as helpers from './helpers'
 import fs from 'fs'
 import path from 'path'
+import zlib from 'zlib'
+
 import b from 'buffer-from'
+import { assert, describe, it } from 'vitest'
+
+import * as helpers from './helpers'
+import * as pako from '../src/main'
 
 describe('Deflate dictionary', function () {
   it('handles multiple pushes', function () {

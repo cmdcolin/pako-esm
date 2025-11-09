@@ -1,24 +1,24 @@
-import { assign, shrinkBuf, flattenChunks, Buf8 } from './utils/common'
-import { string2buf, buf2binstring } from './utils/strings'
+import { Buf8, assign, flattenChunks, shrinkBuf } from './utils/common.js'
+import { buf2binstring, string2buf } from './utils/strings.js'
 import {
-  Z_NO_FLUSH,
-  Z_FINISH,
-  Z_OK,
-  Z_STREAM_END,
-  Z_SYNC_FLUSH,
   Z_DEFAULT_COMPRESSION,
   Z_DEFAULT_STRATEGY,
   Z_DEFLATED,
-} from './zlib/constants'
+  Z_FINISH,
+  Z_NO_FLUSH,
+  Z_OK,
+  Z_STREAM_END,
+  Z_SYNC_FLUSH,
+} from './zlib/constants.js'
 import {
-  deflateInit2,
-  deflateSetHeader,
-  deflateSetDictionary,
   deflate as zlibDeflate,
   deflateEnd,
-} from './zlib/deflate'
-import msg from './zlib/messages'
-import ZStream from './zlib/zstream'
+  deflateInit2,
+  deflateSetDictionary,
+  deflateSetHeader,
+} from './zlib/deflate.js'
+import msg from './zlib/messages.js'
+import ZStream from './zlib/zstream.js'
 
 var toString = Object.prototype.toString
 

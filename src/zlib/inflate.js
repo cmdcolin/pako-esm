@@ -17,11 +17,11 @@
 //   misrepresented as being the original software.
 // 3. This notice may not be removed or altered from any source distribution.
 
-import { arraySet, Buf8, Buf16, Buf32 } from '../utils/common'
-import adler32 from './adler32'
-import crc32 from './crc32'
-import inflate_fast from './inffast'
-import inflate_table from './inftrees'
+import adler32 from './adler32.js'
+import crc32 from './crc32.js'
+import inflate_fast from './inffast.js'
+import inflate_table from './inftrees.js'
+import { Buf16, Buf32, Buf8, arraySet } from '../utils/common.js'
 
 var CODES = 0
 var LENS = 1

@@ -1,10 +1,12 @@
 'use strict'
 
-import { assert, describe, it } from 'vitest'
 import fs from 'fs'
 import path from 'path'
-import * as pako from '../src/main'
+
+import { assert, describe, it } from 'vitest'
+
 import { loadSamples } from './helpers'
+import * as pako from '../src/main'
 
 const sample = loadSamples().lorem_en_100k
 

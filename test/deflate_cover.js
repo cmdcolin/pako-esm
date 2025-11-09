@@ -1,14 +1,16 @@
 // Deflate coverage tests
 'use strict'
 
-import { assert, describe, it } from 'vitest'
 
 import fs from 'fs'
 import path from 'path'
+
+import { assert, describe, it } from 'vitest'
+
 import * as pako from '../src/main'
 import * as c from '../src/zlib/constants'
-import msg from '../src/zlib/messages'
 import * as zlib_deflate from '../src/zlib/deflate'
+import msg from '../src/zlib/messages'
 import ZStream from '../src/zlib/zstream'
 
 var short_sample = 'hello world'
