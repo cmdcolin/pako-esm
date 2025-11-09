@@ -3,7 +3,7 @@
   "description": "Another pako-esm fork",
   "author": "cmdcolin",
   "license": "MIT",
-  "version": "1.0.10",
+  "version": "1.0.11",
   "main": "./lib/main.js",
   "exports": "./lib/main.js",
   "sideEffects": false,
