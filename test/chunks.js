@@ -1,128 +1,123 @@
-'use strict';
+'use strict'
 
-import { assert, describe, it } from 'vitest';
+import { assert, describe, it } from 'vitest'
 
-import { arraySet, Buf8 } from '../lib/utils/common';
-import * as pako from '../lib/main';
-import * as helpers from './helpers';
+import { arraySet, Buf8 } from '../src/utils/common'
+import * as pako from '../src/main'
+import * as helpers from './helpers'
 
-var samples = helpers.loadSamples();
-
+var samples = helpers.loadSamples()
 
 function randomBuf(size) {
-  var buf = Buf8(size);
+  var buf = Buf8(size)
   for (var i = 0; i < size; i++) {
-    buf[i] = Math.round(Math.random() * 256);
+    buf[i] = Math.round(Math.random() * 256)
   }
-  return buf;
+  return buf
 }
 
 function testChunk(buf, expected, packer, chunkSize) {
-  var i, _in, count, pos, size, expFlushCount;
+  var i, _in, count, pos, size, expFlushCount
 
-  var onData = packer.onData;
-  var flushCount = 0;
+  var onData = packer.onData
+  var flushCount = 0
 
   packer.onData = function () {
-    flushCount++;
-    onData.apply(this, arguments);
-  };
+    flushCount++
+    onData.apply(this, arguments)
+  }
 
-  count = Math.ceil(buf.length / chunkSize);
-  pos = 0;
+  count = Math.ceil(buf.length / chunkSize)
+  pos = 0
   for (i = 0; i < count; i++) {
-    size = (buf.length - pos) < chunkSize ? buf.length - pos : chunkSize;
-    _in = Buf8(size);
-    arraySet(_in, buf, pos, size, 0);
-    packer.push(_in, i === count - 1);
-    pos += chunkSize;
+    size = buf.length - pos < chunkSize ? buf.length - pos : chunkSize
+    _in = Buf8(size)
+    arraySet(_in, buf, pos, size, 0)
+    packer.push(_in, i === count - 1)
+    pos += chunkSize
   }
 
   //expected count of onData calls. 16384 output chunk size
-  expFlushCount = Math.ceil(packer.result.length / 16384);
+  expFlushCount = Math.ceil(packer.result.length / 16384)
 
-  assert(!packer.err, 'Packer error: ' + packer.err);
-  assert(helpers.cmpBuf(packer.result, expected), 'Result is different');
-  assert.equal(flushCount, expFlushCount, 'onData called ' + flushCount + 'times, expected: ' + expFlushCount);
+  assert(!packer.err, 'Packer error: ' + packer.err)
+  assert(helpers.cmpBuf(packer.result, expected), 'Result is different')
+  assert.equal(
+    flushCount,
+    expFlushCount,
+    'onData called ' + flushCount + 'times, expected: ' + expFlushCount,
+  )
 }
 
 describe('Small input chunks', function () {
-
   it('deflate 100b by 1b chunk', function () {
-    var buf = randomBuf(100);
-    var deflated = pako.deflate(buf);
-    testChunk(buf, deflated, new pako.Deflate(), 1);
-  });
+    var buf = randomBuf(100)
+    var deflated = pako.deflate(buf)
+    testChunk(buf, deflated, new pako.Deflate(), 1)
+  })
 
   it('deflate 20000b by 10b chunk', function () {
-    var buf = randomBuf(20000);
-    var deflated = pako.deflate(buf);
-    testChunk(buf, deflated, new pako.Deflate(), 10);
-  });
+    var buf = randomBuf(20000)
+    var deflated = pako.deflate(buf)
+    testChunk(buf, deflated, new pako.Deflate(), 10)
+  })
 
   it('inflate 100b result by 1b chunk', function () {
-    var buf = randomBuf(100);
-    var deflated = pako.deflate(buf);
-    testChunk(deflated, buf, new pako.Inflate(), 1);
-  });
+    var buf = randomBuf(100)
+    var deflated = pako.deflate(buf)
+    testChunk(deflated, buf, new pako.Inflate(), 1)
+  })
 
   it('inflate 20000b result by 10b chunk', function () {
-    var buf = randomBuf(20000);
-    var deflated = pako.deflate(buf);
-    testChunk(deflated, buf, new pako.Inflate(), 10);
-  });
-
-});
-
+    var buf = randomBuf(20000)
+    var deflated = pako.deflate(buf)
+    testChunk(deflated, buf, new pako.Inflate(), 10)
+  })
+})
 
 describe('Dummy push (force end)', function () {
-
   it('deflate end', function () {
-    var data = samples.lorem_utf_100k;
+    var data = samples.lorem_utf_100k
 
-    var deflator = new pako.Deflate();
-    deflator.push(data);
-    deflator.push([], true);
+    var deflator = new pako.Deflate()
+    deflator.push(data)
+    deflator.push([], true)
 
-    assert(helpers.cmpBuf(deflator.result, pako.deflate(data)));
-  });
+    assert(helpers.cmpBuf(deflator.result, pako.deflate(data)))
+  })
 
   it('inflate end', function () {
-    var data = pako.deflate(samples.lorem_utf_100k);
+    var data = pako.deflate(samples.lorem_utf_100k)
 
-    var inflator = new pako.Inflate();
-    inflator.push(data);
-    inflator.push([], true);
+    var inflator = new pako.Inflate()
+    inflator.push(data)
+    inflator.push([], true)
 
-    assert(helpers.cmpBuf(inflator.result, pako.inflate(data)));
-  });
-
-});
-
+    assert(helpers.cmpBuf(inflator.result, pako.inflate(data)))
+  })
+})
 
 describe('Edge condition', function () {
-
   it('should be ok on buffer border', function () {
-    var i;
-    var data = new Uint8Array(1024 * 16 + 1);
+    var i
+    var data = new Uint8Array(1024 * 16 + 1)
 
     for (i = 0; i < data.length; i++) {
-      data[i] = Math.floor(Math.random() * 255.999);
+      data[i] = Math.floor(Math.random() * 255.999)
     }
 
-    var deflated = pako.deflate(data);
+    var deflated = pako.deflate(data)
 
-    var inflator = new pako.Inflate();
+    var inflator = new pako.Inflate()
 
     for (i = 0; i < deflated.length; i++) {
-      inflator.push(deflated.subarray(i, i + 1), false);
-      assert.ok(!inflator.err, 'Inflate failed with status ' + inflator.err);
+      inflator.push(deflated.subarray(i, i + 1), false)
+      assert.ok(!inflator.err, 'Inflate failed with status ' + inflator.err)
     }
 
-    inflator.push(new Uint8Array(0), true);
+    inflator.push(new Uint8Array(0), true)
 
-    assert.ok(!inflator.err, 'Inflate failed with status ' + inflator.err);
-    assert(helpers.cmpBuf(data, inflator.result));
-  });
-
-});
+    assert.ok(!inflator.err, 'Inflate failed with status ' + inflator.err)
+    assert(helpers.cmpBuf(data, inflator.result))
+  })
+})

@@ -1,11 +1,26 @@
-import { assign, shrinkBuf, flattenChunks, Buf8 } from './utils/common';
-import { string2buf, buf2binstring } from './utils/strings';
-import { Z_NO_FLUSH, Z_FINISH, Z_OK, Z_STREAM_END, Z_SYNC_FLUSH, Z_DEFAULT_COMPRESSION, Z_DEFAULT_STRATEGY, Z_DEFLATED } from './zlib/constants';
-import { deflateInit2, deflateSetHeader, deflateSetDictionary, deflate as zlibDeflate, deflateEnd } from './zlib/deflate';
-import msg from './zlib/messages';
-import ZStream from './zlib/zstream';
+import { assign, shrinkBuf, flattenChunks, Buf8 } from './utils/common'
+import { string2buf, buf2binstring } from './utils/strings'
+import {
+  Z_NO_FLUSH,
+  Z_FINISH,
+  Z_OK,
+  Z_STREAM_END,
+  Z_SYNC_FLUSH,
+  Z_DEFAULT_COMPRESSION,
+  Z_DEFAULT_STRATEGY,
+  Z_DEFLATED,
+} from './zlib/constants'
+import {
+  deflateInit2,
+  deflateSetHeader,
+  deflateSetDictionary,
+  deflate as zlibDeflate,
+  deflateEnd,
+} from './zlib/deflate'
+import msg from './zlib/messages'
+import ZStream from './zlib/zstream'
 
-var toString = Object.prototype.toString;
+var toString = Object.prototype.toString
 
 /**
  * class Deflate
@@ -97,33 +112,34 @@ var toString = Object.prototype.toString;
  **/
 export class Deflate {
   constructor(options) {
-    this.options = assign({
-      level: Z_DEFAULT_COMPRESSION,
-      method: Z_DEFLATED,
-      chunkSize: 16384,
-      windowBits: 15,
-      memLevel: 8,
-      strategy: Z_DEFAULT_STRATEGY,
-      to: ''
-    }, options || {});
+    this.options = assign(
+      {
+        level: Z_DEFAULT_COMPRESSION,
+        method: Z_DEFLATED,
+        chunkSize: 16384,
+        windowBits: 15,
+        memLevel: 8,
+        strategy: Z_DEFAULT_STRATEGY,
+        to: '',
+      },
+      options || {},
+    )
 
-    var opt = this.options;
+    var opt = this.options
 
-    if (opt.raw && (opt.windowBits > 0)) {
-      opt.windowBits = -opt.windowBits;
+    if (opt.raw && opt.windowBits > 0) {
+      opt.windowBits = -opt.windowBits
+    } else if (opt.gzip && opt.windowBits > 0 && opt.windowBits < 16) {
+      opt.windowBits += 16
     }
 
-    else if (opt.gzip && (opt.windowBits > 0) && (opt.windowBits < 16)) {
-      opt.windowBits += 16;
-    }
+    this.err = 0 // error code, if happens (0 = Z_OK)
+    this.msg = '' // error message
+    this.ended = false // used to avoid multiple onEnd() calls
+    this.chunks = [] // chunks of compressed data
 
-    this.err    = 0;      // error code, if happens (0 = Z_OK)
-    this.msg    = '';     // error message
-    this.ended  = false;  // used to avoid multiple onEnd() calls
-    this.chunks = [];     // chunks of compressed data
-
-    this.strm = new ZStream();
-    this.strm.avail_out = 0;
+    this.strm = new ZStream()
+    this.strm.avail_out = 0
 
     var status = deflateInit2(
       this.strm,
@@ -131,36 +147,36 @@ export class Deflate {
       opt.method,
       opt.windowBits,
       opt.memLevel,
-      opt.strategy
-    );
+      opt.strategy,
+    )
 
     if (status !== Z_OK) {
-      throw new Error(msg[status]);
+      throw new Error(msg[status])
     }
 
     if (opt.header) {
-      deflateSetHeader(this.strm, opt.header);
+      deflateSetHeader(this.strm, opt.header)
     }
 
     if (opt.dictionary) {
-      var dict;
+      var dict
       // Convert data if needed
       if (typeof opt.dictionary === 'string') {
         // If we need to compress text, change encoding to utf8.
-        dict = string2buf(opt.dictionary);
+        dict = string2buf(opt.dictionary)
       } else if (toString.call(opt.dictionary) === '[object ArrayBuffer]') {
-        dict = new Uint8Array(opt.dictionary);
+        dict = new Uint8Array(opt.dictionary)
       } else {
-        dict = opt.dictionary;
+        dict = opt.dictionary
       }
 
-      status = deflateSetDictionary(this.strm, dict);
+      status = deflateSetDictionary(this.strm, dict)
 
       if (status !== Z_OK) {
-        throw new Error(msg[status]);
+        throw new Error(msg[status])
       }
 
-      this._dict_set = true;
+      this._dict_set = true
     }
   }
 
@@ -194,67 +210,74 @@ export class Deflate {
    * ```
    **/
   push(data, mode) {
-    var strm = this.strm;
-    var chunkSize = this.options.chunkSize;
-    var status, _mode;
+    var strm = this.strm
+    var chunkSize = this.options.chunkSize
+    var status, _mode
 
-    if (this.ended) { return false; }
+    if (this.ended) {
+      return false
+    }
 
-    _mode = (mode === ~~mode) ? mode : ((mode === true) ? Z_FINISH : Z_NO_FLUSH);
+    _mode = mode === ~~mode ? mode : mode === true ? Z_FINISH : Z_NO_FLUSH
 
     // Convert data if needed
     if (typeof data === 'string') {
       // If we need to compress text, change encoding to utf8.
-      strm.input = string2buf(data);
+      strm.input = string2buf(data)
     } else if (toString.call(data) === '[object ArrayBuffer]') {
-      strm.input = new Uint8Array(data);
+      strm.input = new Uint8Array(data)
     } else {
-      strm.input = data;
+      strm.input = data
     }
 
-    strm.next_in = 0;
-    strm.avail_in = strm.input.length;
+    strm.next_in = 0
+    strm.avail_in = strm.input.length
 
     do {
       if (strm.avail_out === 0) {
-        strm.output = Buf8(chunkSize);
-        strm.next_out = 0;
-        strm.avail_out = chunkSize;
+        strm.output = Buf8(chunkSize)
+        strm.next_out = 0
+        strm.avail_out = chunkSize
       }
-      status = zlibDeflate(strm, _mode);    /* no bad return value */
+      status = zlibDeflate(strm, _mode) /* no bad return value */
 
       if (status !== Z_STREAM_END && status !== Z_OK) {
-        this.onEnd(status);
-        this.ended = true;
-        return false;
+        this.onEnd(status)
+        this.ended = true
+        return false
       }
-      if (strm.avail_out === 0 || (strm.avail_in === 0 && (_mode === Z_FINISH || _mode === Z_SYNC_FLUSH))) {
+      if (
+        strm.avail_out === 0 ||
+        (strm.avail_in === 0 && (_mode === Z_FINISH || _mode === Z_SYNC_FLUSH))
+      ) {
         if (this.options.to === 'string') {
-          this.onData(buf2binstring(shrinkBuf(strm.output, strm.next_out)));
+          this.onData(buf2binstring(shrinkBuf(strm.output, strm.next_out)))
         } else {
-          this.onData(shrinkBuf(strm.output, strm.next_out));
+          this.onData(shrinkBuf(strm.output, strm.next_out))
         }
       }
-    } while ((strm.avail_in > 0 || strm.avail_out === 0) && status !== Z_STREAM_END);
+    } while (
+      (strm.avail_in > 0 || strm.avail_out === 0) &&
+      status !== Z_STREAM_END
+    )
 
     // Finalize on the last chunk.
     if (_mode === Z_FINISH) {
-      status = deflateEnd(this.strm);
-      this.onEnd(status);
-      this.ended = true;
-      return status === Z_OK;
+      status = deflateEnd(this.strm)
+      this.onEnd(status)
+      this.ended = true
+      return status === Z_OK
     }
 
     // callback interim results if Z_SYNC_FLUSH.
     if (_mode === Z_SYNC_FLUSH) {
-      this.onEnd(Z_OK);
-      strm.avail_out = 0;
-      return true;
+      this.onEnd(Z_OK)
+      strm.avail_out = 0
+      return true
     }
 
-    return true;
+    return true
   }
-
 
   /**
    * Deflate#onData(chunk) -> Void
@@ -266,9 +289,8 @@ export class Deflate {
    * those in `onEnd`. Override this handler, if you need another behaviour.
    **/
   onData(chunk) {
-    this.chunks.push(chunk);
+    this.chunks.push(chunk)
   }
-
 
   /**
    * Deflate#onEnd(status) -> Void
@@ -284,17 +306,16 @@ export class Deflate {
     // On success - join
     if (status === Z_OK) {
       if (this.options.to === 'string') {
-        this.result = this.chunks.join('');
+        this.result = this.chunks.join('')
       } else {
-        this.result = flattenChunks(this.chunks);
+        this.result = flattenChunks(this.chunks)
       }
     }
-    this.chunks = [];
-    this.err = status;
-    this.msg = this.strm.msg;
+    this.chunks = []
+    this.err = status
+    this.msg = this.strm.msg
   }
 }
-
 
 /**
  * deflate(data[, options]) -> Uint8Array|Array|String
@@ -331,16 +352,17 @@ export class Deflate {
  * ```
  **/
 export function deflate(input, options) {
-  var deflator = new Deflate(options);
+  var deflator = new Deflate(options)
 
-  deflator.push(input, true);
+  deflator.push(input, true)
 
   // That will never happens, if you don't cheat with options :)
-  if (deflator.err) { throw deflator.msg || msg[deflator.err]; }
+  if (deflator.err) {
+    throw deflator.msg || msg[deflator.err]
+  }
 
-  return deflator.result;
+  return deflator.result
 }
-
 
 /**
  * deflateRaw(data[, options]) -> Uint8Array|Array|String
@@ -351,11 +373,10 @@ export function deflate(input, options) {
  * (header and adler32 crc).
  **/
 export function deflateRaw(input, options) {
-  options = options || {};
-  options.raw = true;
-  return deflate(input, options);
+  options = options || {}
+  options.raw = true
+  return deflate(input, options)
 }
-
 
 /**
  * gzip(data[, options]) -> Uint8Array|Array|String
@@ -366,7 +387,7 @@ export function deflateRaw(input, options) {
  * deflate one.
  **/
 export function gzip(input, options) {
-  options = options || {};
-  options.gzip = true;
-  return deflate(input, options);
+  options = options || {}
+  options.gzip = true
+  return deflate(input, options)
 }

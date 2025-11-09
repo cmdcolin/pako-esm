@@ -4,13 +4,28 @@
   "author": "cmdcolin",
   "license": "MIT",
   "version": "1.0.11",
-  "main": "./lib/main.js",
-  "exports": "./lib/main.js",
+  "type": "module",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    "import": {
+      "import": "./esm/index.js"
+    },
+    "require": {
+      "require": "./dist/index.js"
+    }
+  },
   "sideEffects": false,
   "scripts": {
     "build_fixtures": "node support/build_fixtures.js",
     "test": "vitest",
     "lint": "eslint",
+    "clean": "rimraf dist esm",
+    "format": "prettier --write .",
+    "build:esm": "tsc --outDir esm",
+    "build:es5": "tsc --module commonjs --outDir dist",
+    "build": "yarn build:esm && yarn build:es5",
+    "prebuild": "yarn clean && yarn lint",
+    "postbuild:es5": "echo '{\"type\": \"commonjs\"}' > dist/package.json",
     "preversion": "yarn lint && yarn test --run",
     "postversion": "git push --follow-tags"
   },
@@ -27,6 +42,9 @@
     "buffer-from": "^1.1.2",
     "eslint": "^9.17.0",
     "globals": "^15.14.0",
+    "prettier": "^3.6.2",
+    "rimraf": "^6.1.0",
+    "typescript": "^5.9.3",
     "vitest": "^2.1.8"
   },
   "repository": {
@@ -37,7 +55,8 @@
     "access": "public"
   },
   "files": [
-    "lib",
-    "main.d.ts"
+    "dist",
+    "esm",
+    "src"
   ]
 }

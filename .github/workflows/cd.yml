@@ -18,15 +18,15 @@ jobs:
     environment: upload
 
     permissions:
-        id-token: write # Required by Akeyless
-        contents: write
-        issues: write
-        packages: read
-        pull-requests: write
+      id-token: write # Required by Akeyless
+      contents: write
+      issues: write
+      packages: read
+      pull-requests: write
 
     concurrency:
-        group: ${{ github.ref }}-cd
-        cancel-in-progress: false
+      group: ${{ github.ref }}-cd
+      cancel-in-progress: false
 
     steps:
       - name: Import Secrets

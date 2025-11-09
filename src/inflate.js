@@ -1,12 +1,37 @@
-import { assign, arraySet, shrinkBuf, flattenChunks, Buf8 } from './utils/common';
-import { binstring2buf, string2buf, buf2string, utf8border } from './utils/strings';
-import { inflateInit2, inflateGetHeader, inflate as zlibInflate, inflateSetDictionary, inflateEnd } from './zlib/inflate';
-import { Z_OK, Z_FINISH, Z_NO_FLUSH, Z_NEED_DICT, Z_BUF_ERROR, Z_STREAM_END, Z_SYNC_FLUSH } from './zlib/constants';
-import msg from './zlib/messages';
-import ZStream from './zlib/zstream';
-import GZheader from './zlib/gzheader';
+import {
+  assign,
+  arraySet,
+  shrinkBuf,
+  flattenChunks,
+  Buf8,
+} from './utils/common'
+import {
+  binstring2buf,
+  string2buf,
+  buf2string,
+  utf8border,
+} from './utils/strings'
+import {
+  inflateInit2,
+  inflateGetHeader,
+  inflate as zlibInflate,
+  inflateSetDictionary,
+  inflateEnd,
+} from './zlib/inflate'
+import {
+  Z_OK,
+  Z_FINISH,
+  Z_NO_FLUSH,
+  Z_NEED_DICT,
+  Z_BUF_ERROR,
+  Z_STREAM_END,
+  Z_SYNC_FLUSH,
+} from './zlib/constants'
+import msg from './zlib/messages'
+import ZStream from './zlib/zstream'
+import GZheader from './zlib/gzheader'
 
-var toString = Object.prototype.toString;
+var toString = Object.prototype.toString
 
 /**
  * class Inflate
@@ -44,7 +69,6 @@ var toString = Object.prototype.toString;
  *
  * Error message, if [[Inflate.err]] != 0
  **/
-
 
 /**
  * new Inflate(options)
@@ -89,72 +113,78 @@ var toString = Object.prototype.toString;
  **/
 export class Inflate {
   constructor(options) {
-    if (!(this instanceof Inflate)) return new Inflate(options);
+    if (!(this instanceof Inflate)) return new Inflate(options)
 
-    this.options = assign({
-      chunkSize: 16384,
-      windowBits: 0,
-      to: ''
-    }, options || {});
+    this.options = assign(
+      {
+        chunkSize: 16384,
+        windowBits: 0,
+        to: '',
+      },
+      options || {},
+    )
 
-    var opt = this.options;
+    var opt = this.options
 
     // Force window size for `raw` data, if not set directly,
     // because we have no header for autodetect.
-    if (opt.raw && (opt.windowBits >= 0) && (opt.windowBits < 16)) {
-      opt.windowBits = -opt.windowBits;
-      if (opt.windowBits === 0) { opt.windowBits = -15; }
+    if (opt.raw && opt.windowBits >= 0 && opt.windowBits < 16) {
+      opt.windowBits = -opt.windowBits
+      if (opt.windowBits === 0) {
+        opt.windowBits = -15
+      }
     }
 
     // If `windowBits` not defined (and mode not raw) - set autodetect flag for gzip/deflate
-    if ((opt.windowBits >= 0) && (opt.windowBits < 16) &&
-        !(options && options.windowBits)) {
-      opt.windowBits += 32;
+    if (
+      opt.windowBits >= 0 &&
+      opt.windowBits < 16 &&
+      !(options && options.windowBits)
+    ) {
+      opt.windowBits += 32
     }
 
     // Gzip header has no info about windows size, we can do autodetect only
     // for deflate. So, if window size not set, force it to max when gzip possible
-    if ((opt.windowBits > 15) && (opt.windowBits < 48)) {
+    if (opt.windowBits > 15 && opt.windowBits < 48) {
       // bit 3 (16) -> gzipped data
       // bit 4 (32) -> autodetect gzip/deflate
       if ((opt.windowBits & 15) === 0) {
-        opt.windowBits |= 15;
+        opt.windowBits |= 15
       }
     }
 
-    this.err    = 0;      // error code, if happens (0 = Z_OK)
-    this.msg    = '';     // error message
-    this.ended  = false;  // used to avoid multiple onEnd() calls
-    this.chunks = [];     // chunks of compressed data
+    this.err = 0 // error code, if happens (0 = Z_OK)
+    this.msg = '' // error message
+    this.ended = false // used to avoid multiple onEnd() calls
+    this.chunks = [] // chunks of compressed data
 
-    this.strm   = new ZStream();
-    this.strm.avail_out = 0;
+    this.strm = new ZStream()
+    this.strm.avail_out = 0
 
-    var status  = inflateInit2(
-      this.strm,
-      opt.windowBits
-    );
+    var status = inflateInit2(this.strm, opt.windowBits)
 
     if (status !== Z_OK) {
-      throw new Error(msg[status]);
+      throw new Error(msg[status])
     }
 
-    this.header = new GZheader();
+    this.header = new GZheader()
 
-    inflateGetHeader(this.strm, this.header);
+    inflateGetHeader(this.strm, this.header)
 
     // Setup dictionary
     if (opt.dictionary) {
       // Convert data if needed
       if (typeof opt.dictionary === 'string') {
-        opt.dictionary = string2buf(opt.dictionary);
+        opt.dictionary = string2buf(opt.dictionary)
       } else if (toString.call(opt.dictionary) === '[object ArrayBuffer]') {
-        opt.dictionary = new Uint8Array(opt.dictionary);
+        opt.dictionary = new Uint8Array(opt.dictionary)
       }
-      if (opt.raw) { //In raw mode we need to set the dictionary early
-        status = inflateSetDictionary(this.strm, opt.dictionary);
+      if (opt.raw) {
+        //In raw mode we need to set the dictionary early
+        status = inflateSetDictionary(this.strm, opt.dictionary)
         if (status !== Z_OK) {
-          throw new Error(msg[status]);
+          throw new Error(msg[status])
         }
       }
     }
@@ -189,86 +219,91 @@ export class Inflate {
    * ```
    **/
   push(data, mode) {
-    var strm = this.strm;
-    var chunkSize = this.options.chunkSize;
-    var dictionary = this.options.dictionary;
-    var status, _mode;
-    var next_out_utf8, tail, utf8str;
-    var dict;
+    var strm = this.strm
+    var chunkSize = this.options.chunkSize
+    var dictionary = this.options.dictionary
+    var status, _mode
+    var next_out_utf8, tail, utf8str
+    var dict
 
     // Flag to properly process Z_BUF_ERROR on testing inflate call
     // when we check that all output data was flushed.
-    var allowBufError = false;
+    var allowBufError = false
 
-    if (this.ended) { return false; }
-    _mode = (mode === ~~mode) ? mode : ((mode === true) ? Z_FINISH : Z_NO_FLUSH);
+    if (this.ended) {
+      return false
+    }
+    _mode = mode === ~~mode ? mode : mode === true ? Z_FINISH : Z_NO_FLUSH
 
     // Convert data if needed
     if (typeof data === 'string') {
       // Only binary strings can be decompressed on practice
-      strm.input = binstring2buf(data);
+      strm.input = binstring2buf(data)
     } else if (toString.call(data) === '[object ArrayBuffer]') {
-      strm.input = new Uint8Array(data);
+      strm.input = new Uint8Array(data)
     } else {
-      strm.input = data;
+      strm.input = data
     }
 
-    strm.next_in = 0;
-    strm.avail_in = strm.input.length;
+    strm.next_in = 0
+    strm.avail_in = strm.input.length
 
     do {
       if (strm.avail_out === 0) {
-        strm.output = Buf8(chunkSize);
-        strm.next_out = 0;
-        strm.avail_out = chunkSize;
+        strm.output = Buf8(chunkSize)
+        strm.next_out = 0
+        strm.avail_out = chunkSize
       }
 
-      status = zlibInflate(strm, Z_NO_FLUSH);    /* no bad return value */
+      status = zlibInflate(strm, Z_NO_FLUSH) /* no bad return value */
 
       if (status === Z_NEED_DICT && dictionary) {
         // Convert data if needed
         if (typeof dictionary === 'string') {
-          dict = string2buf(dictionary);
+          dict = string2buf(dictionary)
         } else if (toString.call(dictionary) === '[object ArrayBuffer]') {
-          dict = new Uint8Array(dictionary);
+          dict = new Uint8Array(dictionary)
         } else {
-          dict = dictionary;
+          dict = dictionary
         }
 
-        status = inflateSetDictionary(this.strm, dict);
-
+        status = inflateSetDictionary(this.strm, dict)
       }
 
       if (status === Z_BUF_ERROR && allowBufError === true) {
-        status = Z_OK;
-        allowBufError = false;
+        status = Z_OK
+        allowBufError = false
       }
 
       if (status !== Z_STREAM_END && status !== Z_OK) {
-        this.onEnd(status);
-        this.ended = true;
-        return false;
+        this.onEnd(status)
+        this.ended = true
+        return false
       }
 
       if (strm.next_out) {
-        if (strm.avail_out === 0 || status === Z_STREAM_END || (strm.avail_in === 0 && (_mode === Z_FINISH || _mode === Z_SYNC_FLUSH))) {
-
+        if (
+          strm.avail_out === 0 ||
+          status === Z_STREAM_END ||
+          (strm.avail_in === 0 &&
+            (_mode === Z_FINISH || _mode === Z_SYNC_FLUSH))
+        ) {
           if (this.options.to === 'string') {
+            next_out_utf8 = utf8border(strm.output, strm.next_out)
 
-            next_out_utf8 = utf8border(strm.output, strm.next_out);
-
-            tail = strm.next_out - next_out_utf8;
-            utf8str = buf2string(strm.output, next_out_utf8);
+            tail = strm.next_out - next_out_utf8
+            utf8str = buf2string(strm.output, next_out_utf8)
 
             // move tail
-            strm.next_out = tail;
-            strm.avail_out = chunkSize - tail;
-            if (tail) { arraySet(strm.output, strm.output, next_out_utf8, tail, 0); }
+            strm.next_out = tail
+            strm.avail_out = chunkSize - tail
+            if (tail) {
+              arraySet(strm.output, strm.output, next_out_utf8, tail, 0)
+            }
 
-            this.onData(utf8str);
-
+            this.onData(utf8str)
           } else {
-            this.onData(shrinkBuf(strm.output, strm.next_out));
+            this.onData(shrinkBuf(strm.output, strm.next_out))
           }
         }
       }
@@ -281,33 +316,34 @@ export class Inflate {
       // NOTE. Deflate does not return error in this case and does not needs such
       // logic.
       if (strm.avail_in === 0 && strm.avail_out === 0) {
-        allowBufError = true;
+        allowBufError = true
       }
-
-    } while ((strm.avail_in > 0 || strm.avail_out === 0) && status !== Z_STREAM_END);
+    } while (
+      (strm.avail_in > 0 || strm.avail_out === 0) &&
+      status !== Z_STREAM_END
+    )
 
     if (status === Z_STREAM_END) {
-      _mode = Z_FINISH;
+      _mode = Z_FINISH
     }
 
     // Finalize on the last chunk.
     if (_mode === Z_FINISH) {
-      status = inflateEnd(this.strm);
-      this.onEnd(status);
-      this.ended = true;
-      return status === Z_OK;
+      status = inflateEnd(this.strm)
+      this.onEnd(status)
+      this.ended = true
+      return status === Z_OK
     }
 
     // callback interim results if Z_SYNC_FLUSH.
     if (_mode === Z_SYNC_FLUSH) {
-      this.onEnd(Z_OK);
-      strm.avail_out = 0;
-      return true;
+      this.onEnd(Z_OK)
+      strm.avail_out = 0
+      return true
     }
 
-    return true;
+    return true
   }
-
 
   /**
    * Inflate#onData(chunk) -> Void
@@ -319,9 +355,8 @@ export class Inflate {
    * those in `onEnd`. Override this handler, if you need another behaviour.
    **/
   onData(chunk) {
-    this.chunks.push(chunk);
+    this.chunks.push(chunk)
   }
-
 
   /**
    * Inflate#onEnd(status) -> Void
@@ -339,14 +374,14 @@ export class Inflate {
       if (this.options.to === 'string') {
         // Glue & convert here, until we teach pako to send
         // utf8 aligned strings to onData
-        this.result = this.chunks.join('');
+        this.result = this.chunks.join('')
       } else {
-        this.result = flattenChunks(this.chunks);
+        this.result = flattenChunks(this.chunks)
       }
     }
-    this.chunks = [];
-    this.err = status;
-    this.msg = this.strm.msg;
+    this.chunks = []
+    this.err = status
+    this.msg = this.strm.msg
   }
 }
 
@@ -390,16 +425,17 @@ export class Inflate {
  * ```
  **/
 export function inflate(input, options) {
-  var inflator = new Inflate(options);
+  var inflator = new Inflate(options)
 
-  inflator.push(input, true);
+  inflator.push(input, true)
 
   // That will never happens, if you don't cheat with options :)
-  if (inflator.err) { throw inflator.msg || msg[inflator.err]; }
+  if (inflator.err) {
+    throw inflator.msg || msg[inflator.err]
+  }
 
-  return inflator.result;
+  return inflator.result
 }
-
 
 /**
  * inflateRaw(data[, options]) -> Uint8Array|Array|String
@@ -410,9 +446,9 @@ export function inflate(input, options) {
  * (header and adler32 crc).
  **/
 export function inflateRaw(input, options) {
-  options = options || {};
-  options.raw = true;
-  return inflate(input, options);
+  options = options || {}
+  options.raw = true
+  return inflate(input, options)
 }
 
 /**
@@ -423,4 +459,4 @@ export function inflateRaw(input, options) {
  * Just shortcut to [[inflate]], because it autodetects format
  * by header.content. Done for convenience.
  **/
-export var ungzip = inflate;
+export var ungzip = inflate

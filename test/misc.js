@@ -3,7 +3,7 @@
 import { assert, describe, it } from 'vitest'
 import fs from 'fs'
 import path from 'path'
-import * as pako from '../lib/main'
+import * as pako from '../src/main'
 import { cmpBuf as cmp } from './helpers'
 
 describe('ArrayBuffer', function () {

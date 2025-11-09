@@ -12,9 +12,9 @@ jobs:
     environment: production
 
     permissions:
-        id-token: write # Required by Akeyless
-        contents: read
-        packages: read
+      id-token: write # Required by Akeyless
+      contents: read
+      packages: read
 
     steps:
       - name: Import Secrets
@@ -22,7 +22,8 @@ jobs:
         uses: LanceMcCarthy/akeyless-action@v3
         with:
           access-id: ${{ secrets.GH_AKEYLESS_ACCESS_ID }}
-          static-secrets: '{ "${{ secrets.GH_AKEYLESS_GH_TOKEN_PATH }}": "GH_TOKEN" }'
+          static-secrets:
+            '{ "${{ secrets.GH_AKEYLESS_GH_TOKEN_PATH }}": "GH_TOKEN" }'
           export-secrets-to-environment: false
 
       - name: Check out master
