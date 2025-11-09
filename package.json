@@ -12,7 +12,7 @@
     "build_fixtures": "node support/build_fixtures.js",
     "test": "vitest",
     "lint": "eslint",
-    "preversion": "yarn lint && yarn test",
+    "preversion": "yarn lint && yarn test --run",
     "postversion": "git push --follow-tags"
   },
   "contributors": [
