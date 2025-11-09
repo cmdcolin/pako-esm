@@ -39,6 +39,6 @@
   },
   "files": [
     "lib",
-    "index.d.ts"
+    "main.d.ts"
   ]
 }
