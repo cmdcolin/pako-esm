@@ -3,7 +3,7 @@
   "description": "Another pako-esm fork",
   "author": "cmdcolin",
   "license": "MIT",
-  "version": "1.0.12",
+  "version": "1.0.13",
   "type": "module",
   "types": "./dist/main.d.ts",
   "exports": {
