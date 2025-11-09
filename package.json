@@ -1,11 +1,11 @@
 {
-  "name": "@progress/pako-esm",
-  "description": "Pako fork with bundler-friendly packaging",
-  "author": "Progress",
-  "license": "SEE LICENSE IN LICENSE.md",
-  "version": "1.0.0",
-  "main": "./lib/index.js",
-  "exports": "./lib/index.js",
+  "name": "pako-esm2",
+  "description": "Another pako-esm fork",
+  "author": "cmdcolin",
+  "license": "MIT",
+  "version": "1.0.7",
+  "main": "./lib/main.js",
+  "exports": "./lib/main.js",
   "types": "index.d.ts",
   "sideEffects": false,
   "scripts": {
@@ -19,34 +19,23 @@
     "Friedel Ziegelmayer (https://github.com/dignifiedquire)",
     "Kirill Efimov (https://github.com/Kirill89)",
     "Jean-loup Gailly",
-    "Mark Adler"
+    "Mark Adler",
+    "Colin Diesh"
   ],
   "devDependencies": {
-    "@rollup/plugin-buble": "^1.0.3",
-    "@rollup/plugin-terser": "^0.4.4",
+    "buffer-from": "^1.1.2",
     "eslint": "^9.17.0",
     "globals": "^15.14.0",
     "vitest": "^2.1.8"
   },
-  "repository": "https://github.com/cmdcolin/pako-esm.git",
-  "release": {
-    "branches": [
-      {
-        "name": "master",
-        "channel": "latest"
-      },
-      {
-        "name": "develop",
-        "prerelease": true,
-        "channel": "dev"
-      }
-    ]
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/cmdcolin/pako-esm.git"
   },
   "publishConfig": {
-    "provenance": true
+    "access": "public"
   },
   "files": [
-    "dist",
     "lib",
     "index.d.ts"
   ]
