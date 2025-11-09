@@ -3,26 +3,16 @@
   "description": "Pako fork with bundler-friendly packaging",
   "author": "Progress",
   "license": "SEE LICENSE IN LICENSE.md",
-  "version": "0.0.0-semantically-released",
-  "main": "./dist/pako.js",
-  "module": "./dist/pako-esm5.js",
-  "es2015": "./dist/pako-esm2015.js",
-  "types": "./index.d.ts",
-  "jsdelivr": "./dist/pako.min.js",
-  "unpkg": "./dist/pako.min.js",
+  "version": "1.0.0",
+  "main": "./lib/index.js",
+  "exports": "./lib/index.js",
+  "types": "index.d.ts",
   "sideEffects": false,
   "scripts": {
-    "build-package": "rollup -c",
     "build_fixtures": "node support/build_fixtures.js",
-    "test": "vitest --run",
-    "lint": "eslint",
-    "prepare": "husky"
+    "test": "vitest",
+    "lint": "eslint"
   },
-  "keywords": [
-    "Kendo UI",
-    "Pako",
-    "Module"
-  ],
   "contributors": [
     "Andrei Tuputcyn (https://github.com/andr83)",
     "Vitaly Puzrin (https://github.com/puzrin)",
@@ -32,24 +22,13 @@
     "Mark Adler"
   ],
   "devDependencies": {
-    "@commitlint/cli": "^19.6.1",
-    "@commitlint/config-conventional": "^19.6.0",
     "@rollup/plugin-buble": "^1.0.3",
     "@rollup/plugin-terser": "^0.4.4",
     "eslint": "^9.17.0",
     "globals": "^15.14.0",
-    "husky": "^9.1.7",
-    "rollup": "^4.29.1",
-    "semantic-release": "^24.2.0",
     "vitest": "^2.1.8"
   },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/telerik/pako-esm.git"
-  },
-  "bugs": {
-    "url": "https://github.com/telerik/pako-esm"
-  },
+  "repository": "https://github.com/cmdcolin/pako-esm.git",
   "release": {
     "branches": [
       {
@@ -68,6 +47,7 @@
   },
   "files": [
     "dist",
+    "lib",
     "index.d.ts"
   ]
 }
