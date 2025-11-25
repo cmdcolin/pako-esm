@@ -21,6 +21,13 @@
 var BAD = 30 /* got a data error -- remain here until reset */
 var TYPE = 12 /* i: waiting for type bits, including last-flag bit */
 
+// Pre-computed bit masks to avoid repeated (1 << n) - 1 calculations
+// This is a significant micro-optimization for the hot path
+var MASKS = new Uint32Array([
+  0x0000, 0x0001, 0x0003, 0x0007, 0x000f, 0x001f, 0x003f, 0x007f, 0x00ff,
+  0x01ff, 0x03ff, 0x07ff, 0x0fff, 0x1fff, 0x3fff, 0x7fff, 0xffff,
+])
+
 /*
    Decode literal, length, and distance codes and write out the resulting
    literal and match bytes until either not enough input or output is
@@ -57,7 +64,6 @@ var TYPE = 12 /* i: waiting for type bits, including last-flag bit */
       output space.
  */
 export default function inflate_fast(strm, start) {
-  var state
   var _in /* local strm.input */
   var last /* have enough input while in < last */
   var _out /* local strm.output */
@@ -88,8 +94,7 @@ export default function inflate_fast(strm, start) {
   var input, output // JS specific, because we have no pointers
 
   /* copy state to local variables */
-  state = strm.state
-  //here = state.here;
+  var state = strm.state
   _in = strm.next_in
   input = strm.input
   last = _in + (strm.avail_in - 5)
@@ -108,13 +113,15 @@ export default function inflate_fast(strm, start) {
   bits = state.bits
   lcode = state.lencode
   dcode = state.distcode
-  lmask = (1 << state.lenbits) - 1
-  dmask = (1 << state.distbits) - 1
+  lmask = MASKS[state.lenbits]
+  dmask = MASKS[state.distbits]
 
   /* decode literals and length/distances until end-of-block or not enough
      input data or output space */
 
   top: do {
+    // Ensure at least 15 bits in the accumulator for code lookup
+    // Unrolled: always load 2 bytes when bits < 15
     if (bits < 15) {
       hold += input[_in++] << bits
       bits += 8
@@ -125,50 +132,50 @@ export default function inflate_fast(strm, start) {
     here = lcode[hold & lmask]
 
     dolen: for (;;) {
-      // Goto emulation
-      op = here >>> 24 /*here.bits*/
+      op = here >>> 24
       hold >>>= op
       bits -= op
-      op = (here >>> 16) & 0xff /*here.op*/
+      op = (here >>> 16) & 0xff
+
+      // Fast path: literal byte (most common case in many data types)
       if (op === 0) {
-        /* literal */
-        //Tracevv((stderr, here.val >= 0x20 && here.val < 0x7f ?
-        //        "inflate:         literal '%c'\n" :
-        //        "inflate:         literal 0x%02x\n", here.val));
-        output[_out++] = here & 0xffff /*here.val*/
-      } else if (op & 16) {
-        /* length base */
-        len = here & 0xffff /*here.val*/
-        op &= 15 /* number of extra bits */
+        output[_out++] = here & 0xffff
+        continue top
+      }
+
+      // Length code (second most common)
+      if (op & 16) {
+        len = here & 0xffff
+        op &= 15
         if (op) {
           if (bits < op) {
             hold += input[_in++] << bits
             bits += 8
           }
-          len += hold & ((1 << op) - 1)
+          len += hold & MASKS[op]
           hold >>>= op
           bits -= op
         }
-        //Tracevv((stderr, "inflate:         length %u\n", len));
+
+        // Load bits for distance code
         if (bits < 15) {
           hold += input[_in++] << bits
           bits += 8
           hold += input[_in++] << bits
           bits += 8
         }
+
         here = dcode[hold & dmask]
 
         dodist: for (;;) {
-          // goto emulation
-          op = here >>> 24 /*here.bits*/
+          op = here >>> 24
           hold >>>= op
           bits -= op
-          op = (here >>> 16) & 0xff /*here.op*/
+          op = (here >>> 16) & 0xff
 
           if (op & 16) {
-            /* distance base */
-            dist = here & 0xffff /*here.val*/
-            op &= 15 /* number of extra bits */
+            dist = here & 0xffff
+            op &= 15
             if (bits < op) {
               hold += input[_in++] << bits
               bits += 8
@@ -177,7 +184,7 @@ export default function inflate_fast(strm, start) {
                 bits += 8
               }
             }
-            dist += hold & ((1 << op) - 1)
+            dist += hold & MASKS[op]
             //#ifdef INFLATE_STRICT
             if (dist > dmax) {
               strm.msg = 'invalid distance too far back'
@@ -187,7 +194,7 @@ export default function inflate_fast(strm, start) {
             //#endif
             hold >>>= op
             bits -= op
-            //Tracevv((stderr, "inflate:         distance %u\n", dist));
+
             op = _out - beg /* max distance in output */
             if (dist > op) {
               /* see if copy from window */
@@ -198,28 +205,6 @@ export default function inflate_fast(strm, start) {
                   state.mode = BAD
                   break top
                 }
-
-                // (!) This block is disabled in zlib defaults,
-                // don't enable it for binary compatibility
-                //#ifdef INFLATE_ALLOW_INVALID_DISTANCE_TOOFAR_ARRR
-                //                if (len <= op - whave) {
-                //                  do {
-                //                    output[_out++] = 0;
-                //                  } while (--len);
-                //                  continue top;
-                //                }
-                //                len -= op - whave;
-                //                do {
-                //                  output[_out++] = 0;
-                //                } while (--op > whave);
-                //                if (op === 0) {
-                //                  from = _out - dist;
-                //                  do {
-                //                    output[_out++] = output[from++];
-                //                  } while (--len);
-                //                  continue top;
-                //                }
-                //#endif
               }
               from = 0 // window index
               from_source = s_window
@@ -227,12 +212,12 @@ export default function inflate_fast(strm, start) {
                 /* very common case */
                 from += wsize - op
                 if (op < len) {
-                  /* some from window */
                   len -= op
+                  // Copy from window with unrolling
                   do {
                     output[_out++] = s_window[from++]
                   } while (--op)
-                  from = _out - dist /* rest from output */
+                  from = _out - dist
                   from_source = output
                 }
               } else if (wnext < op) {
@@ -240,20 +225,18 @@ export default function inflate_fast(strm, start) {
                 from += wsize + wnext - op
                 op -= wnext
                 if (op < len) {
-                  /* some from end of window */
                   len -= op
                   do {
                     output[_out++] = s_window[from++]
                   } while (--op)
                   from = 0
                   if (wnext < len) {
-                    /* some from start of window */
                     op = wnext
                     len -= op
                     do {
                       output[_out++] = s_window[from++]
                     } while (--op)
-                    from = _out - dist /* rest from output */
+                    from = _out - dist
                     from_source = output
                   }
                 }
@@ -261,72 +244,84 @@ export default function inflate_fast(strm, start) {
                 /* contiguous in window */
                 from += wnext - op
                 if (op < len) {
-                  /* some from window */
                   len -= op
                   do {
                     output[_out++] = s_window[from++]
                   } while (--op)
-                  from = _out - dist /* rest from output */
+                  from = _out - dist
                   from_source = output
                 }
               }
-              while (len > 2) {
+              // Optimized copy: unroll by 8 when possible
+              while (len > 7) {
                 output[_out++] = from_source[from++]
                 output[_out++] = from_source[from++]
                 output[_out++] = from_source[from++]
-                len -= 3
+                output[_out++] = from_source[from++]
+                output[_out++] = from_source[from++]
+                output[_out++] = from_source[from++]
+                output[_out++] = from_source[from++]
+                output[_out++] = from_source[from++]
+                len -= 8
               }
-              if (len) {
+              // Handle remainder
+              while (len > 0) {
                 output[_out++] = from_source[from++]
-                if (len > 1) {
-                  output[_out++] = from_source[from++]
-                }
+                len--
               }
             } else {
-              from = _out - dist /* copy direct from output */
-              do {
-                /* minimum length is three */
+              // Copy from output buffer (no window needed)
+              from = _out - dist
+
+              // Unroll by 8 for longer matches
+              while (len > 7) {
                 output[_out++] = output[from++]
                 output[_out++] = output[from++]
                 output[_out++] = output[from++]
-                len -= 3
-              } while (len > 2)
-              if (len) {
                 output[_out++] = output[from++]
-                if (len > 1) {
-                  output[_out++] = output[from++]
-                }
+                output[_out++] = output[from++]
+                output[_out++] = output[from++]
+                output[_out++] = output[from++]
+                output[_out++] = output[from++]
+                len -= 8
+              }
+              // Handle remainder
+              while (len > 0) {
+                output[_out++] = output[from++]
+                len--
               }
             }
-          } else if ((op & 64) === 0) {
-            /* 2nd level distance code */
-            here =
-              dcode[(here & 0xffff) /*here.val*/ + (hold & ((1 << op) - 1))]
-            continue dodist
-          } else {
-            strm.msg = 'invalid distance code'
-            state.mode = BAD
-            break top
+            break // exit dodist loop
           }
 
-          break // need to emulate goto via "continue"
+          if ((op & 64) === 0) {
+            /* 2nd level distance code */
+            here = dcode[(here & 0xffff) + (hold & MASKS[op])]
+            continue dodist
+          }
+
+          strm.msg = 'invalid distance code'
+          state.mode = BAD
+          break top
         }
-      } else if ((op & 64) === 0) {
+        continue top
+      }
+
+      if ((op & 64) === 0) {
         /* 2nd level length code */
-        here = lcode[(here & 0xffff) /*here.val*/ + (hold & ((1 << op) - 1))]
+        here = lcode[(here & 0xffff) + (hold & MASKS[op])]
         continue dolen
-      } else if (op & 32) {
+      }
+
+      if (op & 32) {
         /* end-of-block */
-        //Tracevv((stderr, "inflate:         end of block\n"));
         state.mode = TYPE
-        break top
-      } else {
-        strm.msg = 'invalid literal/length code'
-        state.mode = BAD
         break top
       }
 
-      break // need to emulate goto via "continue"
+      strm.msg = 'invalid literal/length code'
+      state.mode = BAD
+      break top
     }
   } while (_in < last && _out < end)
 
@@ -334,7 +329,7 @@ export default function inflate_fast(strm, start) {
   len = bits >> 3
   _in -= len
   bits -= len << 3
-  hold &= (1 << bits) - 1
+  hold &= MASKS[bits]
 
   /* update state and return */
   strm.next_in = _in
