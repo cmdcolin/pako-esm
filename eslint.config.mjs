@@ -5,6 +5,9 @@ import globals from 'globals'
 
 export default defineConfig(
   {
+    ignores: ['benchmarks/*'],
+  },
+  {
     files: ['*/*.js'],
     languageOptions: {
       sourceType: 'module',
