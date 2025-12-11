@@ -1,5 +1,5 @@
-Copyright © 2020 Progress Software Corporation and/or one of its subsidiaries
-or affiliates. All rights reserved. (as modified)
+Copyright © 2020 Progress Software Corporation and/or one of its subsidiaries or
+affiliates. All rights reserved. (as modified)
 
 Copyright (C) 2014-2017 by Vitaly Puzrin and Andrei Tuputcyn
 
