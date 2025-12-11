@@ -158,7 +158,9 @@ describe('Inflate with dictionary', function () {
     ])
 
     assert.throws(function () {
-      pako.inflate(zCompressed, { dictionary: 'world' })
+      pako.inflate(zCompressed, {
+        dictionary: new Uint8Array([119, 111, 114, 108, 100]),
+      }) // 'world'
     }, /data error/)
   })
 
