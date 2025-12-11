@@ -166,7 +166,6 @@ function InflateState() {
   this.sane = 0 /* if false, allow invalid distance too far */
   this.back = 0 /* bits back of last unprocessed length/lit */
   this.was = 0 /* initial length of match */
-  this.skipCrcCheck = false /* if true, skip CRC validation */
 }
 
 export function inflateResetKeep(strm) {
@@ -247,7 +246,7 @@ export function inflateReset2(strm, windowBits) {
   return inflateReset(strm)
 }
 
-export function inflateInit2(strm, windowBits, options) {
+export function inflateInit2(strm, windowBits) {
   var ret
   var state
 
@@ -262,9 +261,6 @@ export function inflateInit2(strm, windowBits, options) {
   //Tracev((stderr, "inflate: allocated\n"));
   strm.state = state
   state.window = null /*Z_NULL*/
-  if (options && options.skipCrcCheck) {
-    state.skipCrcCheck = true
-  }
   ret = inflateReset2(strm, windowBits)
   if (ret !== Z_OK) {
     strm.state = null /*Z_NULL*/
@@ -764,7 +760,7 @@ export function inflate(strm, flush) {
             bits += 8
           }
           //===//
-          if (!state.skipCrcCheck && hold !== (state.check & 0xffff)) {
+          if (hold !== (state.check & 0xffff)) {
             strm.msg = 'header crc mismatch'
             state.mode = BAD
             break
@@ -1528,7 +1524,7 @@ export function inflate(strm, flush) {
           _out -= left
           strm.total_out += _out
           state.total += _out
-          if (_out && !state.skipCrcCheck) {
+          if (_out) {
             strm.adler = state.check =
               /*UPDATE(state.check, put - _out, _out);*/
               state.flags
@@ -1537,10 +1533,7 @@ export function inflate(strm, flush) {
           }
           _out = left
           // NB: crc32 stored as signed 32-bit int, zswap32 returns signed too
-          if (
-            !state.skipCrcCheck &&
-            (state.flags ? hold : zswap32(hold)) !== state.check
-          ) {
+          if ((state.flags ? hold : zswap32(hold)) !== state.check) {
             strm.msg = 'incorrect data check'
             state.mode = BAD
             break
@@ -1565,7 +1558,7 @@ export function inflate(strm, flush) {
             bits += 8
           }
           //===//
-          if (!state.skipCrcCheck && hold !== (state.total & 0xffffffff)) {
+          if (hold !== (state.total & 0xffffffff)) {
             strm.msg = 'incorrect length check'
             state.mode = BAD
             break
@@ -1627,7 +1620,7 @@ export function inflate(strm, flush) {
   strm.total_in += _in
   strm.total_out += _out
   state.total += _out
-  if (state.wrap && _out && !state.skipCrcCheck) {
+  if (state.wrap && _out) {
     strm.adler = state.check =
       /*UPDATE(state.check, strm.next_out - _out, _out);*/
       state.flags

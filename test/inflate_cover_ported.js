@@ -12,19 +12,17 @@ import inflate_table from '../src/zlib/inftrees'
 import msg from '../src/zlib/messages'
 
 function h2b(hex) {
-  if (!hex) return new Uint8Array(0)
-  var arr = hex.split(' ').map(function (hx) {
+  return hex.split(' ').map(function (hx) {
     return parseInt(hx, 16)
   })
-  return new Uint8Array(arr)
 }
 
 //step argument from original tests is missing because it have no effect
 //we have similar behavior in chunks.js tests
-function testInflate(hex, wbits, status, options) {
+function testInflate(hex, wbits, status) {
   var inflator
   try {
-    inflator = new pako.Inflate({ windowBits: wbits, ...options })
+    inflator = new pako.Inflate({ windowBits: wbits })
   } catch (e) {
     assert(e === msg[status])
     return
@@ -67,9 +65,7 @@ describe('Inflate states', function () {
     testInflate('78 9c 63 0 0 0 1 0 1', 15, c.Z_OK)
   })
   it('bad header crc', function () {
-    testInflate('1f 8b 8 1e 0 0 0 0 0 0 1 0 0 0 0 0 0', 47, c.Z_DATA_ERROR, {
-      skipCrcCheck: false,
-    })
+    testInflate('1f 8b 8 1e 0 0 0 0 0 0 1 0 0 0 0 0 0', 47, c.Z_DATA_ERROR)
   })
   it('check gzip length', function () {
     testInflate('1f 8b 8 2 0 0 0 0 0 0 1d 26 3 0 0 0 0 0 0 0 0 0', 47, c.Z_OK)
@@ -126,17 +122,10 @@ describe('Inflate cover', function () {
     testInflate('c c0 81 0 0 0 0 0 90 ff 6b 4 0', -15, c.Z_DATA_ERROR)
   })
   it('incorrect data check', function () {
-    testInflate('1f 8b 8 0 0 0 0 0 0 0 3 0 0 0 0 1', 47, c.Z_DATA_ERROR, {
-      skipCrcCheck: false,
-    })
+    testInflate('1f 8b 8 0 0 0 0 0 0 0 3 0 0 0 0 1', 47, c.Z_DATA_ERROR)
   })
   it('incorrect length check', function () {
-    testInflate(
-      '1f 8b 8 0 0 0 0 0 0 0 3 0 0 0 0 0 0 0 0 1',
-      47,
-      c.Z_DATA_ERROR,
-      { skipCrcCheck: false },
-    )
+    testInflate('1f 8b 8 0 0 0 0 0 0 0 3 0 0 0 0 0 0 0 0 1', 47, c.Z_DATA_ERROR)
   })
   it('pull 17', function () {
     testInflate('5 c0 21 d 0 0 0 80 b0 fe 6d 2f 91 6c', -15, c.Z_OK)
@@ -272,5 +261,8 @@ describe('Inflate support', function () {
   })
   it('use fixed blocks', function () {
     testInflate('3 0', -15, c.Z_OK)
+  })
+  it('bad window size', function () {
+    testInflate('', -15, c.Z_OK)
   })
 })

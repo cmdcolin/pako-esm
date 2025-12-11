@@ -1,3 +1,5 @@
+Copyright (C) 2025 Colin Diesh
+
 Copyright © 2020 Progress Software Corporation and/or one of its subsidiaries or
 affiliates. All rights reserved. (as modified)
 

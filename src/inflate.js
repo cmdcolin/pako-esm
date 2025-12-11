@@ -1,4 +1,16 @@
-import { Buf8, assign, flattenChunks, shrinkBuf } from './utils/common.js'
+import {
+  Buf8,
+  arraySet,
+  assign,
+  flattenChunks,
+  shrinkBuf,
+} from './utils/common.js'
+import {
+  binstring2buf,
+  buf2string,
+  string2buf,
+  utf8border,
+} from './utils/strings.js'
 import {
   Z_BUF_ERROR,
   Z_FINISH,
@@ -8,11 +20,12 @@ import {
   Z_STREAM_END,
   Z_SYNC_FLUSH,
 } from './zlib/constants.js'
+import GZheader from './zlib/gzheader.js'
 import {
   inflate as zlibInflate,
   inflateEnd,
+  inflateGetHeader,
   inflateInit2,
-  inflateReset,
   inflateSetDictionary,
 } from './zlib/inflate.js'
 import msg from './zlib/messages.js'
@@ -106,7 +119,7 @@ export class Inflate {
       {
         chunkSize: 16384,
         windowBits: 0,
-        skipCrcCheck: true,
+        to: '',
       },
       options || {},
     )
@@ -149,18 +162,22 @@ export class Inflate {
     this.strm = new ZStream()
     this.strm.avail_out = 0
 
-    var status = inflateInit2(this.strm, opt.windowBits, {
-      skipCrcCheck: opt.skipCrcCheck,
-    })
+    var status = inflateInit2(this.strm, opt.windowBits)
 
     if (status !== Z_OK) {
       throw new Error(msg[status])
     }
 
+    this.header = new GZheader()
+
+    inflateGetHeader(this.strm, this.header)
+
     // Setup dictionary
     if (opt.dictionary) {
-      // Convert ArrayBuffer if needed
-      if (toString.call(opt.dictionary) === '[object ArrayBuffer]') {
+      // Convert data if needed
+      if (typeof opt.dictionary === 'string') {
+        opt.dictionary = string2buf(opt.dictionary)
+      } else if (toString.call(opt.dictionary) === '[object ArrayBuffer]') {
         opt.dictionary = new Uint8Array(opt.dictionary)
       }
       if (opt.raw) {
@@ -206,6 +223,8 @@ export class Inflate {
     var chunkSize = this.options.chunkSize
     var dictionary = this.options.dictionary
     var status, _mode
+    var next_out_utf8, tail, utf8str
+    var dict
 
     // Flag to properly process Z_BUF_ERROR on testing inflate call
     // when we check that all output data was flushed.
@@ -216,8 +235,11 @@ export class Inflate {
     }
     _mode = mode === ~~mode ? mode : mode === true ? Z_FINISH : Z_NO_FLUSH
 
-    // Convert ArrayBuffer if needed
-    if (toString.call(data) === '[object ArrayBuffer]') {
+    // Convert data if needed
+    if (typeof data === 'string') {
+      // Only binary strings can be decompressed on practice
+      strm.input = binstring2buf(data)
+    } else if (toString.call(data) === '[object ArrayBuffer]') {
       strm.input = new Uint8Array(data)
     } else {
       strm.input = data
@@ -236,9 +258,10 @@ export class Inflate {
       status = zlibInflate(strm, Z_NO_FLUSH) /* no bad return value */
 
       if (status === Z_NEED_DICT && dictionary) {
-        // Convert ArrayBuffer if needed
-        var dict
-        if (toString.call(dictionary) === '[object ArrayBuffer]') {
+        // Convert data if needed
+        if (typeof dictionary === 'string') {
+          dict = string2buf(dictionary)
+        } else if (toString.call(dictionary) === '[object ArrayBuffer]') {
           dict = new Uint8Array(dictionary)
         } else {
           dict = dictionary
@@ -265,7 +288,23 @@ export class Inflate {
           (strm.avail_in === 0 &&
             (_mode === Z_FINISH || _mode === Z_SYNC_FLUSH))
         ) {
-          this.onData(shrinkBuf(strm.output, strm.next_out))
+          if (this.options.to === 'string') {
+            next_out_utf8 = utf8border(strm.output, strm.next_out)
+
+            tail = strm.next_out - next_out_utf8
+            utf8str = buf2string(strm.output, next_out_utf8)
+
+            // move tail
+            strm.next_out = tail
+            strm.avail_out = chunkSize - tail
+            if (tail) {
+              arraySet(strm.output, strm.output, next_out_utf8, tail, 0)
+            }
+
+            this.onData(utf8str)
+          } else {
+            this.onData(shrinkBuf(strm.output, strm.next_out))
+          }
         }
       }
 
@@ -307,28 +346,6 @@ export class Inflate {
   }
 
   /**
-   * Inflate#reset() -> void
-   *
-   * Resets the inflator state to allow decompressing a new stream.
-   * This is more efficient than creating a new Inflate instance
-   * as it reuses internal buffers.
-   **/
-  reset() {
-    this.err = 0
-    this.msg = ''
-    this.ended = false
-    this.chunks = []
-    // Reset ZStream fields
-    this.strm.input = null
-    this.strm.next_in = 0
-    this.strm.avail_in = 0
-    this.strm.output = null
-    this.strm.next_out = 0
-    this.strm.avail_out = 0
-    inflateReset(this.strm)
-  }
-
-  /**
    * Inflate#onData(chunk) -> Void
    * - chunk (Uint8Array|Array|String): output data. Type of array depends
    *   on js engine support. When string output requested, each chunk
@@ -354,7 +371,13 @@ export class Inflate {
   onEnd(status) {
     // On success - join
     if (status === Z_OK) {
-      this.result = flattenChunks(this.chunks)
+      if (this.options.to === 'string') {
+        // Glue & convert here, until we teach pako to send
+        // utf8 aligned strings to onData
+        this.result = this.chunks.join('')
+      } else {
+        this.result = flattenChunks(this.chunks)
+      }
     }
     this.chunks = []
     this.err = status
@@ -437,109 +460,3 @@ export function inflateRaw(input, options) {
  * by header.content. Done for convenience.
  **/
 export var ungzip = inflate
-
-/**
- * Helper class for efficiently decompressing multiple gzip members (BGZF blocks).
- * Reuses internal buffers across decompressions for better performance.
- *
- * ##### Example:
- *
- * ```javascript
- * var decompressor = new pako.MultiMemberGzip()
- *
- * // Decompress all blocks in a buffer
- * var result = decompressor.decompressAll(compressedData)
- *
- * // Or decompress one block at a time with position tracking
- * var { data, nextBlockOffset } = decompressor.decompressBlock(compressedData, 0)
- * ```
- **/
-export class MultiMemberGzip {
-  constructor() {
-    // No options needed - Inflate defaults are already optimized
-  }
-
-  /**
-   * Decompress a single gzip block starting at offset.
-   * Returns the decompressed data and the offset of the next block.
-   **/
-  decompressBlock(input, offset) {
-    if (offset === undefined) {
-      offset = 0
-    }
-    var inflator = new Inflate()
-
-    var subarray = offset > 0 ? input.subarray(offset) : input
-    inflator.push(subarray, Z_SYNC_FLUSH)
-
-    if (inflator.err) {
-      throw new Error(inflator.msg || msg[inflator.err])
-    }
-
-    return {
-      data: inflator.result,
-      bytesRead: inflator.strm.next_in,
-      nextBlockOffset: offset + inflator.strm.next_in,
-      hasMore: inflator.strm.avail_in > 0,
-    }
-  }
-
-  /**
-   * Decompress all gzip members in the input buffer.
-   * Returns concatenated decompressed data.
-   **/
-  decompressAll(input) {
-    var blocks = []
-    var totalLength = 0
-    var offset = 0
-
-    while (offset < input.length) {
-      var result = this.decompressBlock(input, offset)
-      blocks.push(result.data)
-      totalLength += result.data.length
-      offset = result.nextBlockOffset
-
-      if (!result.hasMore) {
-        break
-      }
-    }
-
-    if (blocks.length === 1) {
-      return blocks[0]
-    }
-
-    var output = new Uint8Array(totalLength)
-    var pos = 0
-    for (var i = 0; i < blocks.length; i++) {
-      output.set(blocks[i], pos)
-      pos += blocks[i].length
-    }
-    return output
-  }
-
-  /**
-   * Decompress all blocks and return them as separate arrays with position info.
-   * Useful for BGZF virtual offset tracking.
-   **/
-  decompressAllBlocks(input) {
-    var blocks = []
-    var offset = 0
-
-    while (offset < input.length) {
-      var blockStart = offset
-      var result = this.decompressBlock(input, offset)
-      blocks.push({
-        data: result.data,
-        compressedOffset: blockStart,
-        compressedSize: result.bytesRead,
-      })
-      offset = result.nextBlockOffset
-
-      if (!result.hasMore) {
-        break
-      }
-    }
-
-    return blocks
-  }
-}

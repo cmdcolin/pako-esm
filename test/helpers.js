@@ -2,11 +2,12 @@
 
 import fs from 'fs'
 import path from 'path'
-import zlib from 'zlib'
 
+import b from 'buffer-from'
 import { assert } from 'vitest'
 
 import * as pako from '../src/main'
+import { Buf8, setTyped } from '../src/utils/common'
 
 // Load fixtures to test
 // return: { 'filename1': content1, 'filename2': content2, ...}
@@ -55,39 +56,24 @@ function cmpBuf(a, b) {
 function testInflate(samples, inflateOptions, deflateOptions) {
   var name, data, deflated, inflated
 
+  // inflate options have windowBits = 0 to force autodetect window size
+  //
   for (name in samples) {
     if (!samples.hasOwnProperty(name)) continue
     data = samples[name]
 
-    // Convert dictionary to Buffer if it's a string (node's zlib requires Buffer)
-    var zlibOptions = deflateOptions ? { ...deflateOptions } : {}
-    if (zlibOptions.dictionary && typeof zlibOptions.dictionary === 'string') {
-      zlibOptions.dictionary = Buffer.from(zlibOptions.dictionary)
-    }
+    // always use the same data type to generate sample
+    setTyped(true)
+    deflated = pako.deflate(data, deflateOptions)
 
-    // Convert dictionary to Uint8Array for pako (we removed string support)
-    var pakoOptions = inflateOptions ? { ...inflateOptions } : {}
-    if (pakoOptions.dictionary && typeof pakoOptions.dictionary === 'string') {
-      pakoOptions.dictionary = new Uint8Array(
-        Buffer.from(pakoOptions.dictionary),
-      )
-    }
+    // with untyped arrays
+    setTyped(false)
+    inflated = pako.inflate(deflated, inflateOptions)
+    assert.deepEqual(new Uint8Array(inflated), data)
 
-    // Use node's zlib to create deflated data
-    // Choose appropriate zlib method based on options
-    if (deflateOptions && deflateOptions.raw) {
-      deflated = new Uint8Array(
-        zlib.deflateRawSync(Buffer.from(data), zlibOptions),
-      )
-    } else if (deflateOptions && deflateOptions.gzip) {
-      deflated = new Uint8Array(zlib.gzipSync(Buffer.from(data), zlibOptions))
-    } else {
-      deflated = new Uint8Array(
-        zlib.deflateSync(Buffer.from(data), zlibOptions),
-      )
-    }
-
-    inflated = pako.inflate(deflated, pakoOptions)
+    // with typed arrays
+    setTyped(true)
+    inflated = pako.inflate(deflated, inflateOptions)
     assert.deepEqual(inflated, data)
   }
 }
